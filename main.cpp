@@ -50,8 +50,12 @@ __sanitise_html(std::string s) {
   return r;
 }
 
+// given a source string;
+// take a substr up until the (implied) next instance of some delimiter 
+// ^ this is actually the *first* instance of some delimiter,
+//  but it is assumed that the index provided is not the index of the initial delimiter
 std::string 
-__substr_next_instance(
+__substr_until_next_instance(
     std::string source, 
     char delim, 
     unsigned int i=0
@@ -60,7 +64,7 @@ __substr_next_instance(
 }
 
 std::string 
-__parse_html(std::string s) {
+__parse_to_html(std::string s) {
   std::string r;
   for (unsigned int i=0; i<s.size(); i++) {
     const char c = s.at(i); 
@@ -76,14 +80,13 @@ __parse_html(std::string s) {
       case '`': // Code Block
         {
           size_t j = (s.at(i+2) == c) ? 3 : 1;
-          std::string code = __substr_next_instance(s, c, i+j); 
+          std::string code = __substr_until_next_instance(s, c, i+j); 
           r.append(tag("code", __sanitise_html(code)));
-          i += code.size() + ((j+1) * 2) - 1;
+          i += code.size() + (j * 2) - 1;
           break;
         }
       case '$': // LaTex
-        {
-          // (this is similar to our b/i parsing)
+        { 
           // we determine if this is a multi or single line [^a]
           // - this is represented as `j` by the count of `$`
           // we can use this information to:
@@ -92,7 +95,7 @@ __parse_html(std::string s) {
           // - move `i` ahead [^d]
           std::string e; size_t j;
           j = (s.at(i+1) == '$') ? 2 : 1; // [a]
-          e = __substr_next_instance(s, c, i+j); // [b]
+          e = __substr_until_next_instance(s, c, i+j); // [b]
           r.append(
               strf(
                 (j < 2) ? "\\(" : "\\[", // [c]
@@ -104,36 +107,36 @@ __parse_html(std::string s) {
         }
         break;
       case '\n': // newline      
-        r.append("\n<br>\n"); 
+        r.append("\n<br>\n"); // FIXME (maybe?): This produces (ugly) HTML with double newlines
         break; 
-      case '-': // [TODO] lists
+      case '-': // TODO: lists
         if (s.at(i+1) == ' ') { // list?
           break;
         }
         if (s.at(i+2) == c) {
           r.append("<hr />");
-          i += 2;
+          i += 3;
           break;
-        } continue;
+        }
+        continue;
       case '>': // block qoutes
         {
-          size_t end = s.find("\n", i+2)-(i+2);
-          std::string inner = __parse_html(s.substr(i+2, end)); // parse inter-qoute content
-          r.append(tag("qoute", inner));
-          i += (end + 1); // account for extra newline
+          std::string inner = __substr_until_next_instance(s, '\n', i+1);
+          r.append(tag("qoute", __parse_to_html(inner)));
+          i += (inner.size() + 1); // account for ending newline
         }
         break;
       case '#': // headers
         {
           size_t h = s.find(' ', i)-i; // determine size of header
-          size_t c = i+h+1; // content index, e.g. (#### abcdefg), would be index of 'a'
-          std::string e = s.substr(c, s.find("\n", c)-c); // content 
+          size_t k = i+h+1; // content index, e.g. (#### abcdefg), would be index of 'a'
+          std::string e = __substr_until_next_instance(s, '\n', k); // content 
           r.append(tag(strf("h",h), e));
-          i += (h+e.size());
+          i += (h + e.size());
         }
         break;
       case '[': // links
-        { 
+        {
           size_t alias_len = s.find(']', i+1);
           if (s.at(alias_len-1) == '\\') alias_len = s.find(']', alias_len+1); // check for escaped brackets 
   
@@ -153,14 +156,13 @@ __parse_html(std::string s) {
             std::string alias = s.substr(i+1, (alias_len - 1) - i);
             std::string link = s.substr(alias_len+2, s.find(')', alias_len)-alias_len-2); // (pos of para - pos bracket) - size of para(s)
             std::string rurl = strf("href=\"", link, "\""); // hyperlink 
-            i = (alias_len + link.size()+2); // account for '(' and ')'
+            i = (alias_len + link.size() + 2); // account for '(' and ')'
             r.append(tag("a", __sanitise_html(alias), rurl));
           }
         } 
         break;
       case '*': // italic (or) bold
-        {
-          // This is completely over-engineered, but it was bugging me
+        { 
           // we determine if this is a bold or italicised string
           // - this is represented as `j` by the count of `*` [^a] 
           // we can use this information to:
@@ -169,14 +171,14 @@ __parse_html(std::string s) {
           // - move `i` ahead [^d]
           std::string e; size_t j;
           j = (s.at(i+1) == '*') ? 2 : 1; // [a]
-          e = __substr_next_instance(s, s.at(i), i+j); // [b]
+          e = __substr_until_next_instance(s, c, i+j); // [b] 
           r.append(
               tag(
                 (j < 2) ? "i" : "b", // [c]
-                __parse_html(e) // enabled nested b/i/*
+                __parse_to_html(e) // enabled nested b/i/*
               )
             );
-          i += ((j+1)*2) + e.size() - 1; // [d]
+          i += (j*2) + e.size() - 1; // [d]
         }
         break;
       default: 
@@ -189,7 +191,10 @@ __parse_html(std::string s) {
 int
 main(int argc, char** argv) {
   std::string s, l;
-  while(getline(std::cin, l)) {s.append(l += '\n');}
-  std::cout << __parse_html(s);
+  while(!std::cin.eof()) {
+    getline(std::cin, l);
+    s.append(l += '\n');
+  }
+  std::cout << __parse_to_html(s);
   return 0;
 }

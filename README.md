@@ -4,9 +4,9 @@ Markdown 2(to) HTML
 
 **Translation Notes**:
 - Use `$`/`$$` to denote LaTex; `\(`/`\)` and `\[`/`\]` are treated as escaped sequences.
-- Only `---` is a horizontal line.
-- Bold/Itallic is only `*`. Nested Bold/Itallics are supported.
-- Double Newlines are not ignored.
+- Only `---` is treated as a horizontal line.
+- Only `*` is treated as Bold/Itallic. Nested Bold/Itallics are supported.
+- Double newlines are not ignored.
 
 
 **Usage**:
