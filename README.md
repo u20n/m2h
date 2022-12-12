@@ -10,7 +10,7 @@ Markdown 2(to) HTML
 
 
 **Usage**:
-m2h takes and outputs from `cin`.
+m2h uses standard cin/cout.
 
 To read `test.md` and produce `test.html` (with executable as `m2h.out`);
 `cat test.md | m2h.out > test.html`
