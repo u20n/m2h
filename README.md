@@ -1,3 +1,5 @@
+Archival Note: Markdown is a sub-optimal standard that should die. I'm not going to be supporting this tool in the future, so as of 05/19/2023, this branch is archived.
+
 ### m2h
 
 Markdown 2(to) HTML
